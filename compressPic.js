@@ -1,16 +1,17 @@
-export default function compress(fileObj, callback) {
+export default function compress(file, obj={}, callback) {
+  //obj参数格式：{scale: 0.5, quality: 0.7}
   try {
     const image = new Image();
-    image.src = URL.createObjectURL(fileObj);
+    image.src = URL.createObjectURL(file);
     image.onload = function() {
       const that = this;
       // 默认按比例压缩
       let w = that.width;
       let h = that.height;
       const scale = w / h;
-      w = fileObj.width || w;
-      h = fileObj.height || (w / scale);
-      let quality = 0.7; // 默认图片质量为0.7
+      w = obj.scale?obj.scale*w:w;
+      h = (w / scale);
+      let quality = obj.quality || 0.7; // 默认图片质量为0.7
       // 生成canvas
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -23,8 +24,8 @@ export default function compress(fileObj, callback) {
       canvas.setAttributeNode(anh);
       ctx.drawImage(that, 0, 0, w, h);
       // 图像质量
-      if (fileObj.quality && fileObj.quality <= 1 && fileObj.quality > 0) {
-        quality = fileObj.quality
+      if (file.quality && file.quality <= 1 && file.quality > 0) {
+        quality = file.quality
       }
       // quality值越小，所绘制出的图像越模糊
       const data = canvas.toDataURL('image/jpeg', quality);
@@ -34,16 +35,19 @@ export default function compress(fileObj, callback) {
     }
   } catch (e) {
     console.log('压缩失败!');
-    //callback(fileObj);
+    callback(file);
   }
 }
-function convertBase64UrlToBlob(urlData) {
-  const bytes = window.atob(urlData.split(',')[1]); // 去掉url的头，并转换为byte
-  // 处理异常,将ascii码小于0的转换为大于0
-  const ab = new ArrayBuffer(bytes.length)
-  const ia = new Uint8Array(ab)
-  for (let i = 0; i < bytes.length; i++) {
-    ia[i] = bytes.charCodeAt(i)
+
+function convertBase64UrlToBlob(urlData){
+  const arr = urlData.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bt = atob(arr[1]);
+  const ab = new ArrayBuffer(bt.length);
+  const u8arr = new Uint8Array(ab);
+  let n = bt.length;
+  while(n--){
+    u8arr[n] = bt.charCodeAt(n);
   }
-  return new Blob([ab], { type: 'image/png' })
+  return new Blob([u8arr], {type:mime});
 }
