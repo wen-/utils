@@ -9,6 +9,7 @@ const OSS = require('ali-oss');
 //   const retryCountMax = 3;
 // }
 
+//sts角色扮演方式
 export default class upfileOSS {
   constructor(obj = {}){
     this.appServer = obj.appServer || 'http://localhost:9000/sts';
