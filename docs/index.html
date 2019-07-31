@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="renderer" content="webkit">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/reset.min.css">
+    <style type="text/css">
+        input[type=checkbox]{
+            -webkit-appearance: checkbox;
+        }
+        body{
+            text-align: center;
+        }
+        h1{
+            font-size: 1rem;
+            margin: 2rem 0 1rem;
+        }
+        .contentBox{
+            margin: 0 auto;
+            width: 60%;
+            height: 10rem;
+            border: dashed 1px #ccc;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .imgFile{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            opacity: 0;
+        }
+        .czBox{
+            margin: 2rem auto;
+            width: 60%;
+            user-select: none;
+        }
+        .sizeTitle{
+            margin-right: 1rem;
+        }
+        .sizeBox label{
+            display: inline-block;
+            margin: 0 1rem 1rem 0;
+        }
+        .addSize{
+            border: solid 1px #ccc;
+            height: 1.5rem;
+            width: 4rem;
+            margin-left: 1rem;
+        }
+        .saveBtn{
+            height: 3rem;
+            width: 10rem;
+            border: solid 1px #ccc;
+        }
+        .saveBtn.disabled{
+            cursor: not-allowed;
+        }
+        button,input[type=text]{
+            border: solid 1px #ccc;
+            min-height: 1.5rem;
+            padding: 0 .5rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>图标生成工具</h1>
+    <section>
+        <div class="contentBox" id="contentBox">
+            <p>将文件拖到此处</p>
+            <input type="file" id="imgFile" class="imgFile" multiple=false />
+        </div>
+        <div class="czBox">
+            <span class="sizeTitle">尺寸：</span>
+            <span class="sizeBox" id="sizeBox"></span>
+            <span>
+                <label><input id="selectAll" checked type="checkbox" />全选</label>
+            </span>
+            <button class="addSize" id="addSize" type="button">添加</button>
+        </div>
+        <div class="saveBox">
+            <button type="button" class="saveBtn" id="saveBtn">生成</button>
+        </div>
+    </section>
+    
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="js/jszip.min.js"></script>
+    <script src="js/FileSaver.min.js"></script>
+    <script src="js/Downloader.js"></script>
+    <script>
+        $(function(){
+            let files;
+            let canvasFile;
+            const buffer = document.createElement("canvas");
+            const sizeArr = [];
+            [16, 24, 48, 64, 96, 128, 256, 512].forEach(function(v){
+                sizeArr.push(`<label><input id="s${v}" name="s${v}" type="checkbox" value="${v}" checked />${v}x${v}</label>`);
+            });
+            $("#imgFile").change(function(){
+                const $this = $(this);
+                files = $this[0].files;
+                if(files.length > 0){
+                    const file = files[0];
+                    $("#contentBox img").remove();
+                    $("#contentBox").prepend('<img style="max-width: 5rem; max-height: 5rem;" src=' + URL.createObjectURL(file) + ' alt="" />');
+                    let types = ["image/png", "image/jpg", "image/jpeg", "image/gif"];
+                    if(types.includes(file.type)){
+                        let img = new Image();
+                        let reader = new FileReader();
+                        reader.onload = e => {
+                            img.src = e.target.result;
+                            canvasFile = img;
+                        };
+                        reader.readAsDataURL(file);
+                    }else{
+                        alert("只支持图片文件");
+                        $this.val('');
+                    }
+                    
+                }
+            })
+            $("#sizeBox").html(sizeArr.join(""));
+            $("#sizeBox input").change(function(){
+                const checked = $("#sizeBox input:not(:checked)").length;
+                if(checked){
+                    $("#selectAll").prop("checked", false);
+                }else{
+                    $("#selectAll").prop("checked", true);
+                }
+            });
+            $("#selectAll").change(function(){
+                const checked = $(this).prop("checked");
+                if(checked){
+                    $("#sizeBox input").prop("checked", true);
+                }else{
+                    $("#sizeBox input").prop("checked", false);
+                }
+            });
+            $("#addSize").click(function(){
+                $(this).before('<span id="addSizeBox"><input type="text" style="width: 3rem;" id="newSize" /><button id="yBtn">确定</button><button id="nBtn">取消</button></span>');
+                $(this).hide();
+            });
+            $(document).on("click", "#nBtn", function(){
+                $("#addSize").show();
+            });
+            $(document).on("click", "#yBtn", function(){
+                const v = $("#newSize").val();
+                $("#sizeBox").append(`<label><input id="s${v}" name="s${v}" type="checkbox" value="${v}" checked />${v}x${v}</label>`);
+                $("#addSizeBox").remove();
+                $("#addSize").show();
+            });
+            $("#saveBtn").click(function(){
+                let $this = $(this);
+                const selectSize = $("#sizeBox input:checked");
+                if(!files){
+                    alert("请选择图片");
+                    return;
+                }
+                if(!selectSize.length){
+                    alert("请选择尺寸");
+                    return;
+                }
+                if($this.hasClass("disabled")){
+                    return;
+                }else{     
+                    let ctx = buffer.getContext('2d');
+                    const file = files[0];
+                    const zipFiles = [];
+                    $this.addClass("disabled");
+                    $this.html("处理中<img src='images/loading.gif' alt='' />");
+                    $.each(selectSize,function(i,v){
+                        const size = $(this).val();
+                        let name = file.name;
+                        buffer.width = size;
+                        buffer.height = size;
+                        ctx.clearRect(0, 0, buffer.width, buffer.height);
+                        ctx.drawImage(canvasFile, 0, 0, buffer.width, buffer.height);
+                        let ext = file.name.split('.').pop().toLowerCase();
+                        if(!ext) {
+                            ext = 'png';
+                            name += `${size}x${size}.` + ext;
+                        }else{
+                            name = name.replace("."+ext, `_${size}x${size}.` + ext);
+                        }
+                        
+                        let base64 = buffer.toDataURL(ext === 'png' ? 'image/png' : 'image/jpeg', 0.7);
+                        base64 = base64.split(',').pop();
+
+                        zipFiles.push({
+                            name: name,
+                            content: base64,
+                            base64: base64
+                        });
+                    });
+                    Downloader.run(zipFiles, file.name + '.zip', function(){
+                        $this.removeClass("disabled").html("生成");
+                    });
+                }
+            })
+        })
+        
+    </script>
+</body>
+</html>

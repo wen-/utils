@@ -10,7 +10,7 @@ window.requestAnimFrame = (function() {
     }
   );
 })();
-
+//应用在body的平滑滚动效果不佳
 class smoothwheel {
   constructor(obj = {}) {
     if(!obj.elem){
