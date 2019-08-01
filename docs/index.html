@@ -83,6 +83,9 @@
             <span>
                 <label><input id="selectAll" checked type="checkbox" />全选</label>
             </span>
+            <span>
+                <label><input id="retainName" checked type="checkbox" />保留文件名</label>
+            </span>
             <button class="addSize" id="addSize" type="button">添加</button>
         </div>
         <div class="saveBox">
@@ -173,6 +176,7 @@
                     let ctx = buffer.getContext('2d');
                     const file = files[0];
                     const zipFiles = [];
+                    const retain = $("#retainName").prop("checked");
                     $this.addClass("disabled");
                     $this.html("处理中<img src='images/loading.gif' alt='' />");
                     $.each(selectSize,function(i,v){
@@ -185,9 +189,9 @@
                         let ext = file.name.split('.').pop().toLowerCase();
                         if(!ext) {
                             ext = 'png';
-                            name += `${size}x${size}.` + ext;
+                            name = retain ? (name + `_${size}x${size}.` + ext) : `${size}x${size}.` + ext;
                         }else{
-                            name = name.replace("."+ext, `_${size}x${size}.` + ext);
+                            name = retain ? name.replace("."+ext, `_${size}x${size}.` + ext) : `${size}x${size}.` + ext;
                         }
                         
                         let base64 = buffer.toDataURL(ext === 'png' ? 'image/png' : 'image/jpeg', 0.7);
