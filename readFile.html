@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style type="text/css">
+body{
+    font-size: 12px;
+}
+#dataShow{
+    margin-top: 2em;
+}
+table{
+    border-left: solid 1px;
+    border-top: solid 1px;
+}
+td{
+    border-right: solid 1px;
+    border-bottom: solid 1px;
+    padding: 10px;
+}
+</style>
+<script src="http://cdn.staticfile.org/moment.js/2.24.0/moment-with-locales.min.js" type="text/javascript"></script>
+<script src="https://libs.baidu.com/jquery/2.0.0/jquery.min.js" type="text/javascript"></script>
+<script>
+$(function(){
+    const tableHead = [
+        'event_date',
+        'event_name',
+        'event_params_description',
+        'event_params_value',
+        'device_mobile_brand_name',
+        'device_mobile_model_name',
+        'device_mobile_marketing_name',
+        'device_mobile_os_hardware_model',
+        'device_operating_system',
+        'device_operating_system_version',
+        'device_language',
+        'geo_country',
+        'geo_region',
+        'geo_city',
+        'app_info_id',
+        'app_info_version',
+    ];
+    const headElemant = tableHead.map((item)=>{
+        return `<td style="font-weight: bold">${item}</td>`;
+    })
+    $("#tableHead").html(`<tr>${headElemant.join('')}</tr>`);
+    $('#addFile').change(function(obj){
+        console.log(obj);
+        const file = obj.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(eve){
+            console.log(eve);
+            const base64 = this.result;
+            let data =  JSON.parse(atob(base64.split(',')[1]));
+            const element = [];
+            const descriptions = [];
+            data = data.filter((item)=>item.device.mobile_os_hardware_model!='Android SDK built for x86');
+            data.sort((a, b)=>a.event_timestamp-b.event_timestamp);
+            data.forEach(item => {
+                const params = item.event_params.filter((param)=>param.key=='description'||param.key=='value');
+                const event_params = {};
+                params.forEach((param)=>{
+                    event_params[param.key] = param.value.string_value;
+                });
+                descriptions.push(event_params.description);
+                const tr = `<tr>
+                        <td><div style="width: 6em;">${moment(parseInt(`${item.event_timestamp}`.slice(0,-3))).format('YYYY-MM-DD HH:mm:ss')}</div></td>
+                        <td>${item.event_name}</td>
+                        <td>${event_params.description}</td>
+                        <td>${event_params.value}</td>
+                        <td>${item.device.mobile_brand_name}</td>
+                        <td>${item.device.mobile_model_name}</td>
+                        <td>${item.device.mobile_marketing_name}</td>
+                        <td>${item.device.mobile_os_hardware_model}</td>
+                        <td>${item.device.operating_system}</td>
+                        <td>${item.device.operating_system_version}</td>
+                        <td>${item.device.language}</td>
+                        <td>${item.geo.country}</td>
+                        <td>${item.geo.region}</td>
+                        <td>${item.geo.city}</td>
+                        <td>${item.app_info.id}</td>
+                        <td>${item.app_info.version}</td>
+                    </tr>`;
+                element.push(tr);
+            });
+            const description = descriptions.reduce((obj, item)=>{
+                if(item in obj){
+                    obj[item]++;
+                }else{
+                    obj[item]=1;
+                }
+                return obj;
+            }, {});
+            const totalElem = Object.keys(description).map((key)=>{
+                return `<p>"${key}": <span style="font-size: 18px">${description[key]}</span></p>`;
+            })
+            $("#tableBody").html(element.join(''));
+            $("#total").html(totalElem.join(''));
+        }
+        reader.readAsDataURL(file);
+    })
+})
+</script>
+</head>
+<body>
+    <div id="content">
+        <input id="addFile" type="file" />
+        <table id="dataShow" cellspacing="0" cellpadding="0">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        <div id="total"></div>
+    </div>
+</body>
+</html>
